@@ -1,17 +1,38 @@
 "use client";
-import ArticleInput from "@/types/ArticleInput";
+import Article from "@/types/Article";
 import Image from "next/image";
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useEffect } from "react";
+import { useLazyGetSummaryQuery } from "@/services/article";
 
 export default function Demo() {
-  const [article, setArticle] = useState<ArticleInput>({
+  const [allArticles, setAllArticles] = useState<Article[]>([]);
+
+  const [article, setArticle] = useState<Article>({
     url: "",
     summary: "",
   });
+
+  const [getSummary, { isFetching, error }] = useLazyGetSummaryQuery();
+
+  useEffect(() => {
+    const localArticles = localStorage.getItem("articles");
+    if (localArticles) {
+      setAllArticles(JSON.parse(localArticles));
+    }
+  }, []);
+
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    alert("Submitted");
+    const { data } = await getSummary({ articleUrl: article.url });
+    if (data?.summary) {
+      const newArticle = { ...article, summary: data.summary };
+      const updatedAllArticles = [newArticle, ...allArticles];
+      setArticle(newArticle);
+      setAllArticles(updatedAllArticles);
+      localStorage.setItem("articles", JSON.stringify(updatedAllArticles));
+    }
   }
+
   return (
     <section className="mt-16 w-full max-w-xl">
       {/* Search */}
@@ -44,6 +65,68 @@ export default function Demo() {
             Go
           </button>
         </form>
+
+        {/* Browse URL History */}
+        <div className="flex flex-col gap-1 max-h-60 overflow-y-auto">
+          {allArticles.length > 0 &&
+            allArticles.map((item) => (
+              <div
+                key={`link-${item.url}`}
+                onClick={() => setArticle(item)}
+                className="link_card"
+              >
+                <div
+                  className="copy_btn"
+                  onClick={() => navigator.clipboard.writeText(item.url)}
+                >
+                  <Image
+                    src="/copy.svg"
+                    alt="copy"
+                    className="w-[40%] h-[40%] object-contain"
+                    width={10}
+                    height={10}
+                  />
+                </div>
+                <p className="flex-1 font-medium text-sm truncate text-blue-600">
+                  {item.url}
+                </p>
+              </div>
+            ))}
+        </div>
+
+        {/* Display Results */}
+        <div className="my-10 max-w-full flex justify-center items-center">
+          {isFetching ? (
+            <Image
+              src="/loader.svg"
+              alt="loading..."
+              width={80}
+              height={80}
+              className="object-contain"
+            />
+          ) : error ? (
+            <p className="font-bold text-black text-center">
+              Well, That was not supposed to happen...
+              <br />
+              <span className="font-normal text-gray-700">
+                {error?.data?.error}
+              </span>
+            </p>
+          ) : (
+            article.summary && (
+              <div className="flex flex-col gap-3">
+                <h2 className="font-bold text-gray-600">
+                  Article <span className="blue_gradient">Summary</span>
+                </h2>
+                <div className="summary_box">
+                  <p className="text-sm font-medium text-gray-700">
+                    {article.summary}
+                  </p>
+                </div>
+              </div>
+            )
+          )}
+        </div>
       </div>
     </section>
   );
