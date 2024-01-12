@@ -1,4 +1,5 @@
 import Hero from "@/components/Hero";
+import Demo from "@/components/Demo";
 
 export default function Home() {
   return (
@@ -8,6 +9,7 @@ export default function Home() {
       </div>
       <div className="app">
         <Hero />
+        <Demo />
       </div>
     </main>
   );
